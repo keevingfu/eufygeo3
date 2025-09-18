@@ -1,0 +1,9 @@
+{
+  "query": "mutation Login($input: LoginInputType!) { login(input: $input) { access_token user { id email username role } } }",
+  "variables": {
+    "input": {
+      "email": "admin@eufy.com",
+      "password": "test123"
+    }
+  }
+}

@@ -1,0 +1,41 @@
+services:
+  # PostgreSQL - Main Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: geo-postgres-dev
+    ports:
+      - "5434:5432"  # Use different port to avoid conflict
+    environment:
+      POSTGRES_USER: geo_user
+      POSTGRES_PASSWORD: geo_password
+      POSTGRES_DB: geo_platform
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geo_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis - Cache & Queue
+  redis:
+    image: redis:7-alpine
+    container_name: geo-redis-dev
+    ports:
+      - "6380:6379"  # Use different port to avoid conflict
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: geo-dev-network

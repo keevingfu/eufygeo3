@@ -1,0 +1,14 @@
+{
+  "name": "@geo-platform/shared",
+  "version": "1.0.0",
+  "description": "GEO Platform Shared Types and Utils",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

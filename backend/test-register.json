@@ -1,0 +1,10 @@
+{
+  "query": "mutation Register($input: RegisterInputType!) { register(input: $input) { access_token user { id email username role } } }",
+  "variables": {
+    "input": {
+      "email": "test@eufy.com",
+      "username": "testuser",
+      "password": "password123"
+    }
+  }
+}

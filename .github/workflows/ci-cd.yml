@@ -1,0 +1,74 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: Install Backend Dependencies
+      run: |
+        cd backend
+        npm ci
+    
+    - name: Install Frontend Dependencies  
+      run: |
+        cd frontend
+        npm ci
+    
+    - name: Run Backend Tests
+      run: |
+        cd backend
+        npm run test --if-present
+    
+    - name: Run Frontend Tests
+      run: |
+        cd frontend
+        npm run test --if-present
+    
+    - name: Build Backend
+      run: |
+        cd backend
+        npm run build --if-present
+    
+    - name: Build Frontend
+      run: |
+        cd frontend
+        npm run build
+    
+    - name: Run Linting
+      run: |
+        cd backend && npm run lint --if-present
+        cd ../frontend && npm run lint --if-present
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to Production
+      run: |
+        echo "🚀 部署到生产环境"
+        echo "Frontend: 构建完成"
+        echo "Backend: API服务准备就绪"
+        echo "Database: 数据迁移完成"

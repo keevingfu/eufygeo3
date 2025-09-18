@@ -1,0 +1,328 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== 用户与权限模块 ====================
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  username     String    @unique
+  passwordHash String    @map("password_hash")
+  fullName     String?   @map("full_name")
+  avatarUrl    String?   @map("avatar_url")
+  roleId       String    @map("role_id")
+  department   String?
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  role                    Role               @relation(fields: [roleId], references: [id])
+  createdKeywords         Keyword[]          @relation("KeywordCreator")
+  assignedKeywords        Keyword[]          @relation("KeywordAssignee")
+  createdContent          ContentItem[]      @relation("ContentCreator")
+  assignedContent         ContentItem[]      @relation("ContentAssignee")
+  reviewedContent         ContentItem[]      @relation("ContentReviewer")
+  approvedContent         ContentItem[]      @relation("ContentApprover")
+  createdContentVersions  ContentVersion[]
+  startedWorkflows        WorkflowInstance[]
+  createdTasks            Task[]             @relation("TaskCreator")
+  assignedTasks           Task[]             @relation("TaskAssignee")
+
+  @@index([email])
+  @@index([roleId])
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  displayName String   @map("display_name")
+  description String?
+  permissions Json     @default("[]")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  users User[]
+
+  @@map("roles")
+}
+
+// ==================== 关键词管理模块 ====================
+
+model Keyword {
+  id               String    @id @default(uuid())
+  text             String
+  searchVolume     Int?      @map("search_volume")
+  difficulty       Decimal?  @db.Decimal(5, 2)
+  cpc              Decimal?  @db.Decimal(10, 2)
+  competitionLevel String?   @map("competition_level") // low, medium, high
+  priorityLevel    String?   @map("priority_level") // P0, P1, P2, P3, P4
+  intentType       String?   @map("intent_type") // informational, navigational, transactional, commercial
+  productLine      String?   @map("product_line") // camera, doorbell, vacuum, lock
+  stage            String?   // TOFU, MOFU, BOFU
+
+  // AIO 相关
+  aioStatus        String?   @default("not_monitored") @map("aio_status")
+  aioFirstSeenAt   DateTime? @map("aio_first_seen_at")
+  aioCoverageScore Decimal?  @map("aio_coverage_score") @db.Decimal(5, 2)
+
+  // 状态跟踪
+  status      String   @default("active")
+  assignedTo  String?  @map("assigned_to")
+  createdBy   String   @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  assignee        User?             @relation("KeywordAssignee", fields: [assignedTo], references: [id])
+  creator         User              @relation("KeywordCreator", fields: [createdBy], references: [id])
+  metrics         KeywordMetric[]
+  contentItems    ContentItem[]     @relation("ContentKeywords")
+  tasks           Task[]
+  analyticsEvents AnalyticsEvent[]
+
+  @@index([text])
+  @@index([priorityLevel])
+  @@index([status])
+  @@index([aioStatus])
+  @@map("keywords")
+}
+
+model KeywordMetric {
+  id          String   @id @default(uuid())
+  keywordId   String   @map("keyword_id")
+  metricDate  DateTime @map("metric_date") @db.Date
+
+  // 排名数据
+  googlePosition         Int?     @map("google_position")
+  googleFeaturedSnippet  Boolean  @default(false) @map("google_featured_snippet")
+  googlePeopleAlsoAsk    Boolean  @default(false) @map("google_people_also_ask")
+
+  // AIO 数据
+  aioDisplayed      Boolean  @default(false) @map("aio_displayed")
+  aioPosition       Int?     @map("aio_position")
+  aioContentSnippet String?  @map("aio_content_snippet")
+
+  // 流量数据
+  organicTraffic Int?     @map("organic_traffic")
+  organicCtr     Decimal? @map("organic_ctr") @db.Decimal(5, 2)
+
+  // 竞争数据
+  topCompetitors Json?    @map("top_competitors") // [{domain, position, traffic_share}]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  keyword Keyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+
+  @@unique([keywordId, metricDate])
+  @@index([metricDate])
+  @@map("keyword_metrics")
+}
+
+// ==================== 内容管理模块 ====================
+
+model ContentItem {
+  id               String    @id @default(uuid())
+  title            String
+  slug             String    @unique
+  contentType      String    @map("content_type") // article, video_script, reddit_post
+  channel          String    // google, youtube, reddit
+
+  // 内容详情
+  brief            String?
+  content          String?
+  metaDescription  String?   @map("meta_description")
+  targetKeywordIds String[]  @map("target_keywords")
+
+  // AI 辅助
+  aiSuggestions        Json?     @map("ai_suggestions")
+  aiScore              Decimal?  @map("ai_score") @db.Decimal(5, 2)
+  optimizationChecklist Json?     @map("optimization_checklist")
+
+  // 工作流
+  status         String    @default("draft") // draft, in_review, approved, published, archived
+  workflowStage  String?   @map("workflow_stage")
+  assignedTo     String?   @map("assigned_to")
+  reviewerId     String?   @map("reviewer_id")
+  approvedBy     String?   @map("approved_by")
+  approvedAt     DateTime? @map("approved_at")
+
+  // 发布信息
+  publishedAt  DateTime? @map("published_at")
+  publishedUrl String?   @map("published_url")
+  externalId   String?   @map("external_id") // YouTube video ID, Reddit post ID
+
+  // 版本控制
+  version   Int     @default(1)
+  parentId  String? @map("parent_id")
+
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  assignee        User?             @relation("ContentAssignee", fields: [assignedTo], references: [id])
+  reviewer        User?             @relation("ContentReviewer", fields: [reviewerId], references: [id])
+  approver        User?             @relation("ContentApprover", fields: [approvedBy], references: [id])
+  creator         User              @relation("ContentCreator", fields: [createdBy], references: [id])
+  parent          ContentItem?      @relation("ContentVersions", fields: [parentId], references: [id])
+  children        ContentItem[]     @relation("ContentVersions")
+  keywords        Keyword[]         @relation("ContentKeywords")
+  versions        ContentVersion[]
+  tasks           Task[]
+  analyticsEvents AnalyticsEvent[]
+
+  @@index([status])
+  @@index([channel])
+  @@index([publishedAt])
+  @@map("content_items")
+}
+
+model ContentVersion {
+  id            String   @id @default(uuid())
+  contentId     String   @map("content_id")
+  versionNumber Int      @map("version_number")
+  title         String?
+  content       String?
+  changesSummary String?  @map("changes_summary")
+  createdBy     String   @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relations
+  contentItem ContentItem @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  creator     User        @relation(fields: [createdBy], references: [id])
+
+  @@map("content_versions")
+}
+
+// ==================== 工作流模块 ====================
+
+model Workflow {
+  id           String   @id @default(uuid())
+  name         String
+  workflowType String   @map("workflow_type") // content_approval, keyword_review
+  stages       Json     // [{name, approvers, actions}]
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  instances WorkflowInstance[]
+
+  @@map("workflows")
+}
+
+model WorkflowInstance {
+  id           String    @id @default(uuid())
+  workflowId   String    @map("workflow_id")
+  entityType   String    @map("entity_type") // content, keyword
+  entityId     String    @map("entity_id")
+  currentStage String?   @map("current_stage")
+  status       String    @default("active") // active, completed, cancelled
+  startedBy    String    @map("started_by")
+  startedAt    DateTime  @default(now()) @map("started_at")
+  completedAt  DateTime? @map("completed_at")
+
+  // Relations
+  workflow Workflow @relation(fields: [workflowId], references: [id])
+  starter  User     @relation(fields: [startedBy], references: [id])
+
+  @@map("workflow_instances")
+}
+
+// ==================== 分析数据模块 ====================
+
+model AnalyticsEvent {
+  id         String   @id @default(uuid())
+  eventType  String   @map("event_type") // page_view, aio_display, click, conversion
+  source     String   // google, youtube, reddit
+
+  // 关联数据
+  keywordId String? @map("keyword_id")
+  contentId String? @map("content_id")
+
+  // 事件详情
+  eventData   Json?    @map("event_data")
+  sessionId   String?  @map("session_id")
+  userAgent   String?  @map("user_agent")
+  ipHash      String?  @map("ip_hash")
+
+  // 时间戳
+  occurredAt  DateTime  @map("occurred_at")
+  processedAt DateTime? @map("processed_at")
+
+  // Relations
+  keyword Keyword?     @relation(fields: [keywordId], references: [id])
+  content ContentItem? @relation(fields: [contentId], references: [id])
+
+  @@index([eventType])
+  @@index([occurredAt])
+  @@index([keywordId])
+  @@map("analytics_events")
+}
+
+model PerformanceReport {
+  id         String   @id @default(uuid())
+  reportType String   @map("report_type") // daily, weekly, monthly
+  reportDate DateTime @map("report_date") @db.Date
+
+  // KPI 数据
+  metrics Json // {aio_coverage, organic_traffic, conversion_rate, roi}
+
+  // 维度数据
+  byKeyword Json? @map("by_keyword")
+  byContent Json? @map("by_content")
+  byChannel Json? @map("by_channel")
+
+  generatedAt DateTime @default(now()) @map("generated_at")
+
+  @@unique([reportType, reportDate])
+  @@map("performance_reports")
+}
+
+// ==================== 任务管理模块 ====================
+
+model Task {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  taskType    String   @map("task_type") // content_creation, keyword_research, optimization
+  priority    String   @default("medium") // urgent, high, medium, low
+
+  // 关联
+  keywordId String? @map("keyword_id")
+  contentId String? @map("content_id")
+  assignedTo String? @map("assigned_to")
+
+  // 时间管理
+  dueDate        DateTime? @map("due_date") @db.Date
+  estimatedHours Decimal?  @map("estimated_hours") @db.Decimal(5, 2)
+  actualHours    Decimal?  @map("actual_hours") @db.Decimal(5, 2)
+
+  // 状态
+  status      String    @default("pending") // pending, in_progress, completed, cancelled
+  completedAt DateTime? @map("completed_at")
+
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  keyword  Keyword?     @relation(fields: [keywordId], references: [id])
+  content  ContentItem? @relation(fields: [contentId], references: [id])
+  assignee User?        @relation("TaskAssignee", fields: [assignedTo], references: [id])
+  creator  User         @relation("TaskCreator", fields: [createdBy], references: [id])
+
+  @@index([status])
+  @@index([assignedTo])
+  @@index([dueDate])
+  @@map("tasks")
+}

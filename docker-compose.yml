@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  # PostgreSQL - Main Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: geo-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: geo_user
+      POSTGRES_PASSWORD: geo_password
+      POSTGRES_DB: geo_platform
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geo_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis - Cache & Queue
+  redis:
+    image: redis:7-alpine
+    container_name: geo-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Neo4j - Graph Database for Keywords
+  neo4j:
+    image: neo4j:5-community
+    container_name: geo-neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: neo4j/geo_password
+      NEO4J_PLUGINS: '["apoc", "graph-data-science"]'
+      NEO4J_dbms_memory_pagecache_size: 1G
+      NEO4J_dbms_memory_heap_max__size: 2G
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+
+  # Elasticsearch - Full-text Search
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: geo-elasticsearch
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200 >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Qdrant - Vector Database for AI
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: geo-qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  # MinIO - Object Storage (for media files)
+  minio:
+    image: minio/minio:latest
+    container_name: geo-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: geo_admin
+      MINIO_ROOT_PASSWORD: geo_password
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+volumes:
+  postgres_data:
+  redis_data:
+  neo4j_data:
+  neo4j_logs:
+  elasticsearch_data:
+  qdrant_data:
+  minio_data:
+
+networks:
+  default:
+    name: geo-network
