@@ -18,7 +18,7 @@ import {
 import {
   SearchOutlined,
   FileTextOutlined,
-  TrendingUpOutlined,
+  RiseOutlined,
   TeamOutlined,
   RocketOutlined,
   ThunderboltOutlined,
@@ -60,7 +60,7 @@ export default function DashboardPage() {
     },
     {
       title: '查看分析',
-      icon: <TrendingUpOutlined style={{ fontSize: 24 }} />,
+      icon: <RiseOutlined style={{ fontSize: 24 }} />,
       description: '查看数据分析报告',
       path: '/dashboard/analytics',
       color: '#fa541c'

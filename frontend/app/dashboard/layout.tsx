@@ -25,7 +25,8 @@ import {
   BellOutlined,
   SettingOutlined,
   MenuFoldOutlined,
-  MenuUnfoldOutlined
+  MenuUnfoldOutlined,
+  ProjectOutlined
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 
@@ -73,6 +74,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       key: '/dashboard/content',
       icon: <FileTextOutlined />,
       label: 'AI 内容生成',
+    },
+    {
+      key: '/dashboard/workflow',
+      icon: <ProjectOutlined />,
+      label: '30天工作流',
     },
     {
       key: '/dashboard/analytics',

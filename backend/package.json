@@ -15,7 +15,8 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "test:integrated": "ts-node --transpile-only src/test-integrated-services.ts"
   },
   "dependencies": {
     "@nestjs/apollo": "^12.2.2",
