@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Navigation from '../components/Navigation';
 import { Inter } from 'next/font/google';
 import { ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
@@ -25,6 +26,8 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body className={inter.className}>
+        
+        <Navigation />
         <ApolloProviderWrapper>
           <ConfigProvider
             locale={zhCN}

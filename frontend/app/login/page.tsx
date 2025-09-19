@@ -14,44 +14,30 @@ export default function LoginPage() {
   const onFinish = async (values: { email: string; password: string }) => {
     setLoading(true);
     try {
-      // 调用认证 API
-      const response = await fetch('http://localhost:4003/graphql', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          query: `
-            mutation Login($input: LoginInputType!) {
-              login(input: $input) {
-                access_token
-                user {
-                  id
-                  email
-                  username
-                  role
-                }
-              }
-            }
-          `,
-          variables: {
-            input: {
-              email: values.email,
-              password: values.password,
-            },
-          },
-        }),
-      });
+      // Mock authentication for demo (no backend required)
+      const mockUsers = [
+        { email: 'admin@eufy.com', password: 'test123', role: 'ADMIN', username: 'Admin User' },
+        { email: 'user@eufy.com', password: 'test123', role: 'USER', username: 'Regular User' }
+      ];
 
-      const data = await response.json();
+      const user = mockUsers.find(u => u.email === values.email && u.password === values.password);
 
-      if (data.errors) {
-        throw new Error(data.errors[0].message);
+      if (!user) {
+        throw new Error('用户名或密码错误');
       }
 
+      // Generate mock token and user data
+      const mockToken = `mock-jwt-token-${Buffer.from(JSON.stringify({ email: user.email })).toString('base64')}`;
+      const mockUserData = {
+        id: user.email === 'admin@eufy.com' ? '1' : '2',
+        email: user.email,
+        username: user.username,
+        role: user.role
+      };
+
       // 保存 token 到 localStorage
-      localStorage.setItem('auth_token', data.data.login.access_token);
-      localStorage.setItem('user_info', JSON.stringify(data.data.login.user));
+      localStorage.setItem('auth_token', mockToken);
+      localStorage.setItem('user_info', JSON.stringify(mockUserData));
 
       message.success('登录成功！');
       

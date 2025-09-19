@@ -69,6 +69,29 @@ __pycache__/
 venv/
 ENV/
 
+# Test files and screenshots
+test-screenshots/
+verification-screenshots/
+*.png
+*.jpg
+*.jpeg
+test-report.html
+test-report.md
+quick-test-report.html
+startup-verification.png
+
+# CI/CD and automation files (temporary)
+auto-sync.log
+deploy.log
+github-sync.log
+
+# Development utilities
+verify-startup.js
+test-quick-analysis.js
+test-complete-user-journey.js
+test-complete-user-journey.ts
+auto-fix-navigation.js
+
 # Misc
 .eslintcache
 .stylelintcache
